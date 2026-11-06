@@ -30,6 +30,16 @@ function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
+        <Link to="/" className="brand auth-brand">
+         <img
+           src="/codequest-logo.png"
+           alt="CodeQuest"
+           className="auth-logo"
+         />
+        </Link>
+
+        <p className="eyebrow">PRACTICE • SOLVE • GROW</p>
+
         <h1>Welcome back</h1>
         <p>Sign in to continue your coding journey.</p>
 
@@ -64,9 +74,14 @@ function LoginPage() {
         <p>
           Don't have an account? <Link to="/register">Create account</Link>
         </p>
+
+        <p className="auth-tagline">
+          Practice • Solve • Grow
+        </p>
       </section>
     </main>
   );
 }
 
 export default LoginPage;
+

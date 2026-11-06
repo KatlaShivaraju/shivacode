@@ -38,8 +38,18 @@ function RegisterPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
+        <Link to="/" className="brand auth-brand">
+        <img
+          src="/codequest-logo.png"
+          alt="CodeQuest"
+          className="auth-logo"
+        />
+        </Link>
+
+        <p className="eyebrow">PRACTICE • SOLVE • GROW</p>
+
         <h1>Create your account</h1>
-        <p>Join ShivaCode and start solving problems.</p>
+        <p>Join CodeQuest and start your coding journey.</p>
 
         <form onSubmit={handleSubmit}>
           <label htmlFor="username">Username</label>
@@ -96,9 +106,14 @@ function RegisterPage() {
         <p>
           Already have an account? <Link to="/login">Sign in</Link>
         </p>
+
+        <p className="auth-tagline">
+          Practice • Solve • Grow
+        </p>
       </section>
     </main>
   );
 }
 
 export default RegisterPage;
+

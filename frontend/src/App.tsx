@@ -87,8 +87,11 @@ function App() {
             if (event.key === 'Enter') navigate('/');
           }}
         >
-          <span className="brand-mark">&lt;/&gt;</span>
-          <span>ShivaCode</span>
+          <img
+            src="/codequest-logo.png"
+            alt="CodeQuest"
+            className="codequest-logo"
+          />
         </div>
 
         <div className="auth-actions">
@@ -97,6 +100,14 @@ function App() {
               <span className="header-label">
                 Welcome, {user?.username}
               </span>
+
+              <Link to="/dashboard" className="auth-link">
+                Dashboard
+              </Link>
+
+              <Link to="/profile" className="auth-link">
+                My Profile
+              </Link>
 
               <button
                 type="button"
@@ -123,7 +134,7 @@ function App() {
       <main className="content">
         <section className="hero">
           <p className="eyebrow">
-            YOUR CODING JOURNEY STARTS HERE
+            PRACTICE • SOLVE • GROW
           </p>
 
           <h1>
@@ -213,14 +224,16 @@ function App() {
       </main>
 
       <footer>
-        <span>ShivaCode</span>
-        <span>Built to make you a better problem solver.</span>
+        <span>CodeQuest</span>
+        <span>Practice • Solve • Grow</span>
       </footer>
     </div>
   );
 }
 
 export default App;
+
+
 
 
 
