@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 
 type Problem = {
   id: number;
@@ -20,6 +21,7 @@ function App() {
   const [error, setError] = useState('');
   const [difficulty, setDifficulty] = useState('All');
 
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -68,6 +70,11 @@ function App() {
     };
   }, [difficulty]);
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className="app">
       <header className="topbar">
@@ -84,12 +91,40 @@ function App() {
           <span>ShivaCode</span>
         </div>
 
-        <span className="header-label">CODING PRACTICE</span>
+        <div className="auth-actions">
+          {isAuthenticated ? (
+            <>
+              <span className="header-label">
+                Welcome, {user?.username}
+              </span>
+
+              <button
+                type="button"
+                className="auth-button"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="auth-link">
+                Login
+              </Link>
+
+              <Link to="/register" className="auth-button">
+                Register
+              </Link>
+            </>
+          )}
+        </div>
       </header>
 
       <main className="content">
         <section className="hero">
-          <p className="eyebrow">YOUR CODING JOURNEY STARTS HERE</p>
+          <p className="eyebrow">
+            YOUR CODING JOURNEY STARTS HERE
+          </p>
 
           <h1>
             Sharpen your <span>problem-solving</span> skills.
@@ -129,7 +164,9 @@ function App() {
             ))}
           </div>
 
-          {loading && <p className="status">Loading problems...</p>}
+          {loading && (
+            <p className="status">Loading problems...</p>
+          )}
 
           {error && <p className="error">{error}</p>}
 
@@ -184,5 +221,6 @@ function App() {
 }
 
 export default App;
+
 
 

@@ -24,12 +24,11 @@ public class CodeExecutionService {
     private int timeoutSeconds;
 
     public CodeExecutionResponse execute(CodeExecutionRequest request) {
-        String input = request.input() == null ? "" : request.input();
+        String input = request == null || request.input() == null
+                ? ""
+                : request.input();
 
-        List<CodeExecutionResponse> results =
-                executeBatch(request, List.of(input));
-
-        return results.get(0);
+        return executeBatch(request, List.of(input)).get(0);
     }
 
     public List<CodeExecutionResponse> executeBatch(
@@ -62,6 +61,8 @@ public class CodeExecutionService {
             return List.of(response("EXECUTED", "", "", 0));
         }
 
+        int safeTimeout = Math.max(1, timeoutSeconds);
+
         Path tempDirectory = null;
         String containerId = null;
 
@@ -83,7 +84,10 @@ public class CodeExecutionService {
                 );
             }
 
-            String script = buildExecutionScript(inputs.size());
+            String script = buildExecutionScript(
+                    inputs.size(),
+                    safeTimeout
+            );
 
             Process create = new ProcessBuilder(
                     "docker", "create",
@@ -95,7 +99,7 @@ public class CodeExecutionService {
                     "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
                     "--cap-drop", "ALL",
                     "--security-opt", "no-new-privileges",
-                    "--user", "1000:1000",
+                    "--user", "10001:10001",
                     "--mount",
                     "type=bind,source=" + work.toAbsolutePath()
                             + ",target=/runner/work",
@@ -108,6 +112,7 @@ public class CodeExecutionService {
 
             if (!createFinished) {
                 create.destroyForcibly();
+                create.waitFor(2, TimeUnit.SECONDS);
 
                 return repeatedResponse(
                         inputs.size(),
@@ -121,7 +126,7 @@ public class CodeExecutionService {
             String createOutput = new String(
                     create.getInputStream().readAllBytes(),
                     StandardCharsets.UTF_8
-            );
+            ).trim();
 
             if (create.exitValue() != 0) {
                 return repeatedResponse(
@@ -133,7 +138,7 @@ public class CodeExecutionService {
                 );
             }
 
-            containerId = createOutput.trim();
+            containerId = createOutput;
 
             if (containerId.isBlank()) {
                 return repeatedResponse(
@@ -145,34 +150,37 @@ public class CodeExecutionService {
                 );
             }
 
-            long start = System.nanoTime();
+            long batchTimeoutSeconds =
+                    (long) safeTimeout * (inputs.size() + 1L) + 20L;
+
+            long batchStart = System.nanoTime();
 
             Process run = new ProcessBuilder(
                     "docker", "start", "--attach", containerId
             ).redirectErrorStream(true).start();
 
             boolean finished = run.waitFor(
-                    Math.max(15, (long) timeoutSeconds * inputs.size() + 10),
+                    batchTimeoutSeconds,
                     TimeUnit.SECONDS
             );
 
-            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(
-                    System.nanoTime() - start
+            long batchElapsedMs = TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - batchStart
             );
 
             if (!finished) {
                 run.destroyForcibly();
+                run.waitFor(2, TimeUnit.SECONDS);
 
                 return repeatedResponse(
                         inputs.size(),
                         "TIME_LIMIT_EXCEEDED",
                         "",
-                        "Execution exceeded the overall time limit.",
-                        elapsedMs
+                        "The runner exceeded its overall time limit.",
+                        batchElapsedMs
                 );
             }
 
-            // Read the stream even if Docker returns a non-zero exit code.
             String runOutput = new String(
                     run.getInputStream().readAllBytes(),
                     StandardCharsets.UTF_8
@@ -192,7 +200,7 @@ public class CodeExecutionService {
                             "COMPILATION_ERROR",
                             "",
                             compileError,
-                            elapsedMs
+                            batchElapsedMs
                     );
                 }
             }
@@ -210,7 +218,7 @@ public class CodeExecutionService {
                             "",
                             "Runner did not produce a status file. "
                                     + runOutput,
-                            elapsedMs
+                            batchElapsedMs
                     ));
                     continue;
                 }
@@ -222,13 +230,15 @@ public class CodeExecutionService {
 
                 String output = Files.exists(outputFile)
                         ? Files.readString(
-                        outputFile, StandardCharsets.UTF_8
+                        outputFile,
+                        StandardCharsets.UTF_8
                 )
                         : "";
 
                 String error = Files.exists(errorFile)
                         ? Files.readString(
-                        errorFile, StandardCharsets.UTF_8
+                        errorFile,
+                        StandardCharsets.UTF_8
                 ).trim()
                         : "";
 
@@ -236,8 +246,8 @@ public class CodeExecutionService {
                     results.add(response(
                             "TIME_LIMIT_EXCEEDED",
                             output,
-                            "Program exceeded the time limit.",
-                            elapsedMs
+                            "Program exceeded the per-test time limit.",
+                            batchElapsedMs
                     ));
                 } else if (!"0".equals(status)) {
                     results.add(response(
@@ -246,14 +256,14 @@ public class CodeExecutionService {
                             error.isBlank()
                                     ? "Program exited with code " + status
                                     : error,
-                            elapsedMs
+                            batchElapsedMs
                     ));
                 } else {
                     results.add(response(
                             "EXECUTED",
                             output,
                             error,
-                            elapsedMs
+                            batchElapsedMs
                     ));
                 }
             }
@@ -264,7 +274,7 @@ public class CodeExecutionService {
             Thread.currentThread().interrupt();
 
             return repeatedResponse(
-                    inputs.size(),
+                    safeCount(inputs),
                     "ERROR",
                     "",
                     "Execution was interrupted.",
@@ -273,7 +283,7 @@ public class CodeExecutionService {
 
         } catch (IOException e) {
             return repeatedResponse(
-                    inputs.size(),
+                    safeCount(inputs),
                     "ERROR",
                     "",
                     "Runner service error: " + e.getMessage(),
@@ -287,7 +297,9 @@ public class CodeExecutionService {
                             "docker", "rm", "-f", containerId
                     ).redirectErrorStream(true).start();
 
-                    cleanup.waitFor(5, TimeUnit.SECONDS);
+                    if (!cleanup.waitFor(5, TimeUnit.SECONDS)) {
+                        cleanup.destroyForcibly();
+                    }
                 } catch (Exception ignored) {
                     // Best-effort container cleanup.
                 }
@@ -310,11 +322,14 @@ public class CodeExecutionService {
         }
     }
 
-    private String buildExecutionScript(int inputCount) {
+    private String buildExecutionScript(
+            int inputCount,
+            int timeout
+    ) {
         StringBuilder script = new StringBuilder();
 
         script.append("timeout ")
-                .append(timeoutSeconds)
+                .append(timeout)
                 .append("s javac Solution.java 2> compile-error.txt; ")
                 .append("compile_code=$?; ")
                 .append("if [ $compile_code -eq 124 ]; then ")
@@ -325,14 +340,13 @@ public class CodeExecutionService {
 
         for (int i = 0; i < inputCount; i++) {
             script.append("timeout ")
-                    .append(timeoutSeconds)
+                    .append(timeout)
                     .append("s java Solution ")
                     .append("< input-").append(i).append(".txt ")
                     .append("> output-").append(i).append(".txt ")
                     .append("2> error-").append(i).append(".txt; ")
                     .append("code=$?; ")
-                    .append("echo $code > status-").append(i).append(".txt; ")
-                    .append("if [ $code -eq 124 ]; then exit 0; fi; ");
+                    .append("echo $code > status-").append(i).append(".txt; ");
         }
 
         return script.toString();
@@ -363,7 +377,10 @@ public class CodeExecutionService {
 
         for (int i = 0; i < count; i++) {
             results.add(response(
-                    status, output, error, executionTimeMs
+                    status,
+                    output,
+                    error,
+                    executionTimeMs
             ));
         }
 
@@ -374,6 +391,7 @@ public class CodeExecutionService {
         return inputs == null || inputs.isEmpty() ? 1 : inputs.size();
     }
 }
+
 
 
 

@@ -1,5 +1,5 @@
 
-package com.shivacode.backend;
+package com.shivacode.backend.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

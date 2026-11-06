@@ -1,4 +1,6 @@
+
 package com.shivacode.backend.entity;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -12,6 +14,10 @@ public class SubmissionEntity {
 
     @Column(name = "problem_id", nullable = false)
     private Long problemId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserEntity user;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String sourceCode;
@@ -48,6 +54,14 @@ public class SubmissionEntity {
 
     public void setProblemId(Long problemId) {
         this.problemId = problemId;
+    }
+
+    public UserEntity getUser() {
+        return user;
+    }
+
+    public void setUser(UserEntity user) {
+        this.user = user;
     }
 
     public String getSourceCode() {
@@ -90,4 +104,5 @@ public class SubmissionEntity {
         this.submittedAt = submittedAt;
     }
 }
+
 
