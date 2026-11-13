@@ -6,7 +6,7 @@ import { getMyProfile } from '../services/profileService';
 import type { UserProfile } from '../types/profile';
 
 function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);

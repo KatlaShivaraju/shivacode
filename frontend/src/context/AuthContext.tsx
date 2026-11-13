@@ -8,7 +8,7 @@ import {
 
 import type { AuthContextType, AuthResponse } from '../types/auth';
 
-import { loginUser, registerUser } from '../services/authService';
+import { loginUser, registerUser } from '../services/AuthService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

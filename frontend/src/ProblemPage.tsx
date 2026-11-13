@@ -132,6 +132,15 @@ function ProblemPage() {
     let active = true;
 
     const fetchProblem = async () => {
+      // Capture and validate the route parameter inside this async function.
+      // TypeScript cannot rely on the outer effect's narrowing across this closure.
+      const problemId = id;
+      if (!problemId) {
+        setError('Invalid problem ID.');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError('');
       setProblem(null);
@@ -147,16 +156,16 @@ function ProblemPage() {
 
       try {
         const response = await axios.get<Problem>(
-          `/api/problems/${id}`
+          `/api/problems/${problemId}`
         );
 
         if (!active) return;
 
         setProblem(response.data);
-        setCode(getSavedCode(id) ?? starterCode);
+        setCode(getSavedCode(problemId) ?? starterCode);
 
         const testCaseResponse = await axios.get<PublicTestCase[]>(
-          `/api/problems/${id}/test-cases`
+          `/api/problems/${problemId}/test-cases`
         );
 
         if (!active) return;
