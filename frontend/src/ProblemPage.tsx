@@ -1,8 +1,8 @@
-
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import Editor from '@monaco-editor/react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 
 import api from './services/api';
 import { useAuth } from './context/AuthContext';
@@ -63,11 +63,40 @@ const starterCode = `class Solution {
     }
 }`;
 
+const getSavedCode = (problemId: string): string | null => {
+  try {
+    return localStorage.getItem(`codequest_problem_${problemId}`);
+  } catch {
+    return null;
+  }
+};
+
+const saveCode = (problemId: string, value: string) => {
+  try {
+    localStorage.setItem(`codequest_problem_${problemId}`, value);
+  } catch {
+    // The editor remains usable if browser storage is unavailable.
+  }
+};
+
 function ProblemPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const { isAuthenticated } = useAuth();
+  const [editorTheme, setEditorTheme] = useState<'dark' | 'light'>(() => {
+    return localStorage.getItem('codequest_theme') === 'light'
+      ? 'light'
+      : 'dark';
+  });
+
+  const toggleEditorTheme = () => {
+    setEditorTheme((currentTheme) => {
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('codequest_theme', nextTheme);
+      return nextTheme;
+    });
+  };
 
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,6 +153,7 @@ function ProblemPage() {
         if (!active) return;
 
         setProblem(response.data);
+        setCode(getSavedCode(id) ?? starterCode);
 
         const testCaseResponse = await axios.get<PublicTestCase[]>(
           `/api/problems/${id}/test-cases`
@@ -365,9 +395,20 @@ function ProblemPage() {
     }
   };
 
+  // Keep the latest handlers available to Monaco keyboard shortcuts.
+  // Monaco mounts once, so calling the functions directly from onMount can
+  // otherwise capture stale React state.
+  const runCodeRef = useRef(runCode);
+  const submitCodeRef = useRef(submitCode);
+  runCodeRef.current = runCode;
+  submitCodeRef.current = submitCode;
+
   // Restore starter code.
   const resetCode = () => {
     setCode(starterCode);
+    if (id) {
+      saveCode(id, starterCode);
+    }
     setOutput('');
     setRunVerdict(null);
     setSubmission(null);
@@ -402,14 +443,19 @@ function ProblemPage() {
     <div className="workspace">
 
       {/* TOP NAVIGATION */}
-      <header className="workspace-topbar">
-        <button
-          className="workspace-brand"
-          onClick={() => navigate('/')}
-        >
-          <span className="brand-mark">S</span>
-          <span>ShivaCode</span>
-        </button>
+    <header className="workspace-topbar">
+      <button
+        className="workspace-brand"
+        onClick={() => navigate('/')}
+      >
+        <img
+          src="/codequest-logo.png"
+          alt="CodeQuest Logo"
+          className="codequest-logo"
+        />
+        <span>CodeQuest</span>
+      </button>
+
 
         <div className="workspace-nav">
           <span>Problems</span>
@@ -429,10 +475,13 @@ function ProblemPage() {
 
       <main className="workspace-main">
 
-        <div className="workspace-grid">
-
+        <Group
+          orientation="horizontal"
+          className="workspace-grid resizable-workspace"
+        >
           {/* LEFT: PROBLEM DESCRIPTION */}
-          <section className="description-panel">
+          <Panel defaultSize={40} minSize={25}>
+            <section className="description-panel">
 
             <div className="panel-heading">
               <span className="panel-number">
@@ -475,10 +524,14 @@ function ProblemPage() {
                 </p>
               </div>
             </div>
-          </section>
+            </section>
+          </Panel>
+
+          <Separator className="workspace-resize-handle" />
 
           {/* RIGHT: CODE EDITOR */}
-          <section className="coding-panel">
+          <Panel defaultSize={60} minSize={35}>
+            <section className="coding-panel">
 
             <div className="editor-toolbar">
               <div>
@@ -487,36 +540,71 @@ function ProblemPage() {
                 <span className="language-label">Java</span>
               </div>
 
-              <button
-                className="toolbar-reset"
-                onClick={resetCode}
-              >
-                Reset
-              </button>
+              <div className="editor-toolbar-actions">
+                <button
+                  type="button"
+                  className="toolbar-reset"
+                  onClick={toggleEditorTheme}
+                  aria-label={`Switch to ${editorTheme === 'dark' ? 'light' : 'dark'} editor theme`}
+                  title={`Switch to ${editorTheme === 'dark' ? 'light' : 'dark'} editor theme`}
+                >
+                  {editorTheme === 'dark' ? '☀ Light' : '☾ Dark'}
+                </button>
+
+                <button
+                  type="button"
+                  className="toolbar-reset"
+                  onClick={resetCode}
+                >
+                  Reset
+                </button>
+              </div>
             </div>
 
             <div className="workspace-editor">
               <Editor
-                height="100%"
-                language="java"
-                theme="vs-dark"
-                value={code}
-                onChange={(value) => {
-                  setCode(value ?? '');
-                  setRunVerdict(null);
-                  setSubmission(null);
-                }}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  automaticLayout: true,
-                  scrollBeyondLastLine: false,
-                  wordWrap: 'on',
-                  tabSize: 4,
-                  padding: { top: 18 },
-                  lineNumbersMinChars: 3,
-                  renderLineHighlight: 'all',
-                }}
+  height="100%"
+  language="java"
+  theme={editorTheme === 'dark' ? 'vs-dark' : 'light'}
+  value={code}
+  onChange={(value) => {
+    const updatedCode = value ?? '';
+    setCode(updatedCode);
+    if (id) {
+      saveCode(id, updatedCode);
+    }
+    setRunVerdict(null);
+    setSubmission(null);
+  }}
+  onMount={(editor, monaco) => {
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+      () => void runCodeRef.current()
+    );
+
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd |
+        monaco.KeyMod.Shift |
+        monaco.KeyCode.Enter,
+      () => void submitCodeRef.current()
+    );
+
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      () => {}
+    );
+  }}
+  options={{
+    minimap: { enabled: false },
+    fontSize: 14,
+    automaticLayout: true,
+    scrollBeyondLastLine: false,
+    wordWrap: 'on',
+    tabSize: 4,
+    padding: { top: 18 },
+    lineNumbersMinChars: 3,
+    renderLineHighlight: 'all',
+  }}
               />
             </div>
 
@@ -727,8 +815,9 @@ function ProblemPage() {
               </pre>
 
             </section>
-          </section>
-        </div>
+            </section>
+          </Panel>
+        </Group>
 
         {/* SUBMISSION HISTORY */}
         <section className="history-panel">

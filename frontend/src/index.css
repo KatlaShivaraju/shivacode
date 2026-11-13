@@ -2167,3 +2167,96 @@ button {
   display: block;
 }
 
+
+
+/* =====================================
+   CODEQUEST RESIZABLE WORKSPACE
+===================================== */
+
+.resizable-workspace {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* Both resizable panels */
+.resizable-workspace > [data-panel] {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Problem description */
+.resizable-workspace .description-panel {
+  height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Coding panel */
+.resizable-workspace .coding-panel {
+  height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Draggable divider */
+.workspace-resize-handle {
+  position: relative;
+  flex: 0 0 10px;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  outline: none;
+}
+
+.workspace-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  border-radius: 5px;
+  background: #303b4c;
+  transition: background 180ms ease, width 180ms ease;
+}
+
+.workspace-resize-handle:hover::after,
+.workspace-resize-handle:focus-visible::after {
+  background: #8b75ff;
+  width: 4px;
+  left: 3px;
+}
+
+/* Keep editor dimensions stable */
+.resizable-workspace .workspace-editor {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Responsive fallback */
+@media (max-width: 900px) {
+  .resizable-workspace {
+    gap: 0;
+  }
+
+  .resizable-workspace .description-panel {
+    padding: 18px;
+  }
+
+  .resizable-workspace .workspace-editor {
+    height: 400px;
+  }
+}
+
+
+.codequest-logo {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  display: block;
+}
+
