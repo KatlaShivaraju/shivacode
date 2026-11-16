@@ -5,6 +5,7 @@ import com.shivacode.backend.dto.CodeExecutionRequest;
 import com.shivacode.backend.dto.CodeExecutionResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import java.nio.file.attribute.PosixFilePermissions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -128,6 +129,13 @@ public class SecureCodeExecutionService {
 
             Path classesDir = Files.createDirectory(
                     workspace.resolve("classes")
+            );
+
+// Allow the isolated non-root Docker compiler to write class files.
+// The parent workspace is private and temporary.
+            Files.setPosixFilePermissions(
+                    classesDir,
+                    PosixFilePermissions.fromString("rwxrwxrwx")
             );
 
             Files.writeString(
