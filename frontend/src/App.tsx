@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from './services/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
@@ -45,8 +45,8 @@ function App() {
       params.difficulty = difficulty;
     }
 
-    axios
-      .get('/api/problems', { params })
+ api
+   .get('/api/problems', { params })
       .then((response) => {
         if (active) {
           setProblems(response.data.content);

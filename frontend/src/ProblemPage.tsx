@@ -155,7 +155,7 @@ function ProblemPage() {
       setSelectedTestCase(-1);
 
       try {
-        const response = await axios.get<Problem>(
+        const response = await api.get<Problem>(
           `/api/problems/${problemId}`
         );
 
@@ -164,7 +164,7 @@ function ProblemPage() {
         setProblem(response.data);
         setCode(getSavedCode(problemId) ?? starterCode);
 
-        const testCaseResponse = await axios.get<PublicTestCase[]>(
+        const testCaseResponse = await api.get<PublicTestCase[]>(
           `/api/problems/${problemId}/test-cases`
         );
 

@@ -1,5 +1,5 @@
 
-import axios from 'axios';
+import api from './api';
 import type {
   AuthResponse,
   LoginRequest,
@@ -11,7 +11,7 @@ const API_URL = '/api/auth';
 export const registerUser = async (
   data: RegisterRequest
 ): Promise<AuthResponse> => {
-  const response = await axios.post<AuthResponse>(
+  const response = await api.post<AuthResponse>(
     `${API_URL}/register`,
     data
   );
@@ -22,10 +22,11 @@ export const registerUser = async (
 export const loginUser = async (
   data: LoginRequest
 ): Promise<AuthResponse> => {
-  const response = await axios.post<AuthResponse>(
+  const response = await api.post<AuthResponse>(
     `${API_URL}/login`,
     data
   );
 
   return response.data;
 };
+
